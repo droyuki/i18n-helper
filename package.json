@@ -30,7 +30,7 @@
     "type": "git",
     "url": "https://github.com/droyuki/i18n-helper"
   },
-  "publisher": "i18n-helper",
+  "publisher": "droyuki",
   "devDependencies": {
     "@types/glob": "^7.1.1",
     "@types/mocha": "^7.0.1",
