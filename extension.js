@@ -1,15 +1,18 @@
-const vscode = require('vscode');
-const get = require('lodash/get');
-const set = require('lodash/set');
+const chokidar = require('chokidar');
 const fs = require('fs');
+const get = require('lodash/get');
 const path = require('path');
+const set = require('lodash/set');
+const vscode = require('vscode');
 const { Range, Position, Hover } = vscode;
+
 const workspaceRoot = vscode.workspace.rootPath;
 const configurationSection = 'i18nHelper';
+const translation = {};
+let globalWatcher;
 
 function loadConfig() {
-  const config = vscode.workspace.getConfiguration(configurationSection);
-  return config
+  return vscode.workspace.getConfiguration(configurationSection);
 }
 
 function getFolders(dir){
@@ -39,7 +42,7 @@ function loadFile(file) {
   });
 }
 
-async function getProjects(configs) {
+async function loadProjects(configs) {
   const result = [];
   for (const config of configs){
     result.push({
@@ -47,31 +50,51 @@ async function getProjects(configs) {
       locales: await getFolders(config.path)
     })
   }
+
   return result;
 }
 
-async function loadTranslations(projects) {
-  const result = {};
+async function loadTranslation(config){
+  const { path, project, locale } = config;
+  const fromFile = await loadFile(path);
+  set(translation, [project, locale], JSON.parse(fromFile));
+}
 
-  for (const project of projects) {
-    console.log(`--- Project ${project.name} ---`);
-    const locales = await getFolders(project.path);
+function initWatcher(projects) {
+  const paths = projects.map(p => path.join(workspaceRoot,p.path));
+  const watcher = chokidar.watch(paths, {
+    persistent: true
+  });
 
-    for (const locale of locales) {
-      const filePath = path.join(
-        workspaceRoot,
-        project.path,
-        locale,
-        "translation.json"
-      );
-      const fromFile = await loadFile(filePath);
-      set(result, [project.name, locale], JSON.parse(fromFile));
-      console.log(`${locale} loaded`);
+  const getTranslationConfig = path => {
+    const _path = path.replace(`${workspaceRoot}/`, "");
+    const project = projects.find(p => _path.startsWith(p.path));
+    const regex =
+      "(?<=" +
+      project.path.replace("/", "/") +
+      "/).+(?=/translation.json)";
+
+    const locale = _path.match(new RegExp(regex, "g")) || [""];
+    
+    return {
+      path,
+      project: project.name,
+      locale: locale[0],
     }
-    console.log('-----');
+  };
+
+  const onEvent = async (path) => {
+    const config = getTranslationConfig(path)
+    await loadTranslation(config)
+    console.log(`${config.project} ${config.locale} loaded`);
   }
 
-  return result;
+  watcher
+    .on("add", onEvent)
+    .on("change", onEvent)
+
+  globalWatcher = watcher;
+  return watcher;
 }
 
 /**
@@ -85,10 +108,10 @@ async function activate() {
     vscode.window.showInformationMessage(toast);
     return;
   }
-  console.log("i18n-helper is now active!");
 
-  const projects = await getProjects(config.projects);
-  const translation = await loadTranslations(config.projects);
+  console.log("i18n-helper is now active!");
+  const projects = await loadProjects(config.projects);
+  initWatcher(config.projects);
 
   vscode.languages.registerHoverProvider(
     ["javascript", "javascriptreact"],
@@ -111,7 +134,7 @@ async function activate() {
         const biggerRange = new Range(start, end);
         const wordInRange = document.getText(biggerRange);
 
-        // string in single quote, and contain dot
+        // string in single quote
         const regex = /\'(.*?\..*?)\'/g;
         const match = wordInRange.match(regex);
 
@@ -121,7 +144,7 @@ async function activate() {
           const getter = config.flatten
             ? target.split(".")
             : [target];
-          let mdStr = "";
+          let markdownStr = "";
 
           projects.forEach(project => {
             const { name, locales } = project;
@@ -140,11 +163,11 @@ async function activate() {
               projectStr += translationStr;
             }
 
-            mdStr += projectStr;
+            markdownStr += projectStr;
           });
 
-          if(mdStr){
-            return new Hover(mdStr);
+          if(markdownStr){
+            return new Hover(markdownStr);
           } else {
             return;
           }
@@ -153,10 +176,15 @@ async function activate() {
     }
   );
 }
+
 exports.activate = activate;
 
 // this method is called when your extension is deactivated
-function deactivate() {}
+function deactivate() {
+  if (globalWatcher) {
+    globalWatcher.close().then(() => console.log("watcher closed"));
+  }
+}
 
 module.exports = {
   activate,

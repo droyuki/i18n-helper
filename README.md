@@ -24,6 +24,10 @@ This extension contributes the following settings:
 
 Initial release 
 
+### 1.0.1
+
+Add file watcher
+
 --------------------------------------------------------------------------------------------------------
 
 ## Screen shots
