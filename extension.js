@@ -54,6 +54,7 @@ async function loadTranslations(projects) {
   const result = {};
 
   for (const project of projects) {
+    console.log(`--- Project ${project.name} ---`);
     const locales = await getFolders(project.path);
 
     for (const locale of locales) {
@@ -65,7 +66,9 @@ async function loadTranslations(projects) {
       );
       const fromFile = await loadFile(filePath);
       set(result, [project.name, locale], JSON.parse(fromFile));
+      console.log(`${locale} loaded`);
     }
+    console.log('-----');
   }
 
   return result;
@@ -76,22 +79,16 @@ async function loadTranslations(projects) {
  */
 async function activate() {
   const config = loadConfig();
-  let projects;
-  let translation;
 
-  if(!config.projects){
-    const toast = '`i18nHelper.paths` not found!'
+  if (!config.projects) {
+    const toast = "`i18nHelper.projects` not found!";
     vscode.window.showInformationMessage(toast);
     return;
-  } else {
-    const msg = "i18n-helper is now active!"
-    console.log(msg)
-    
-    // vscode.window.showInformationMessage(msg);
-    projects = await getProjects(config.projects);// { name: [...locales] }
-    translation = await loadTranslations(config.projects);
-  
   }
+  console.log("i18n-helper is now active!");
+
+  const projects = await getProjects(config.projects);
+  const translation = await loadTranslations(config.projects);
 
   vscode.languages.registerHoverProvider(
     ["javascript", "javascriptreact"],
@@ -115,37 +112,42 @@ async function activate() {
         const wordInRange = document.getText(biggerRange);
 
         // string in single quote, and contain dot
-        const regex = /\(\'(.*?\..*?)\'\)/g;
+        const regex = /\'(.*?\..*?)\'/g;
         const match = wordInRange.match(regex);
 
         if (match && match.length) {
           const [str] = match;
-          const target = str.replace(`('`, "").replace(`')`, "");
-          let mdStr = '';
+          const target = str.replace(`'`, "").replace(`'`, "");
+          const getter = config.flatten
+            ? target.split(".")
+            : [target];
+          let mdStr = "";
 
           projects.forEach(project => {
             const { name, locales } = project;
-            let projectStr = '';
-            let translationStr = '';
+            let projectStr = "";
+            let translationStr = "";
             locales.forEach(locale => {
-              const t = get(translation, [name, locale, target]);
+              const t = get(translation, [name, locale, ...getter]);
               if (t) {
-                translationStr += `| ${locale} | ${t} |\n`;
+                translationStr += `|${locale}|${t}|\n`;
               }
             });
 
-            if(translationStr.length){
-              projectStr += `#### ${name}\n`;
-              projectStr += "| Locale | Translation |\n";
-              projectStr += "| --- | --- |\n";
+            if (translationStr.length) {
+              projectStr += `|${name}||\n`;
+              projectStr += "|:---|:---|\n";
               projectStr += translationStr;
             }
 
             mdStr += projectStr;
-            mdStr += "\n---\n";
           });
-          console.log(mdStr);
-          return new Hover(mdStr);
+
+          if(mdStr){
+            return new Hover(mdStr);
+          } else {
+            return;
+          }
         }
       }
     }
