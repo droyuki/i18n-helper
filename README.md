@@ -25,3 +25,7 @@ This extension contributes the following settings:
 Initial release 
 
 --------------------------------------------------------------------------------------------------------
+
+## Screen shots
+
+![](https://github.com/droyuki/i18n-helper/blob/master/screenshot.gif)
