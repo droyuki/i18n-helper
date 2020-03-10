@@ -20,13 +20,18 @@ This extension contributes the following settings:
 
 ## Release Notes
 
-### 1.0.0
+### 1.0.2, 1.0.3, 1.0.4
 
-Initial release 
+bug fix
 
 ### 1.0.1
 
 Add file watcher
+
+### 1.0.0
+
+Initial release 
+
 
 --------------------------------------------------------------------------------------------------------
 

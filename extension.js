@@ -86,7 +86,7 @@ function initWatcher(projects) {
   const onEvent = async path => {
     const config = getTranslationConfig(path);
     await loadTranslation(config);
-    console.log(`${config.project} ${config.locale} loaded`);
+    console.log(`[i18n-helper] ${config.project} ${config.locale} loaded`);
   };
 
   watcher.on("add", onEvent).on("change", onEvent);
@@ -107,7 +107,7 @@ async function activate() {
     return;
   }
 
-  console.log("i18n-helper is now active!");
+  console.log("[i18n-helper] is now active!");
   const projects = await loadProjects(config.projects);
   initWatcher(config.projects);
 
@@ -158,8 +158,9 @@ async function activate() {
 
             if (translationStr.length) {
               projectStr += `|${name}||\n`;
-              projectStr += "|:---|:---|\n";
+              projectStr += "|:--|:--|\n";
               projectStr += translationStr;
+              projectStr += '\n'
             }
 
             markdownStr += projectStr;
