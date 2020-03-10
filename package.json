@@ -2,7 +2,7 @@
   "name": "i18n-helper",
   "displayName": "i18n-helper",
   "description": "",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "engines": {
     "vscode": "^1.42.0"
   },
