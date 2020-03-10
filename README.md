@@ -36,5 +36,4 @@ Initial release
 --------------------------------------------------------------------------------------------------------
 
 ## Screen shots
-
-![](https://github.com/droyuki/i18n-helper/blob/master/screenshot.gif)
+![Screenshot](screenshot.gif)
