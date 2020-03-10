@@ -1,13 +1,13 @@
-const chokidar = require('chokidar');
-const fs = require('fs');
-const get = require('lodash/get');
-const path = require('path');
-const set = require('lodash/set');
-const vscode = require('vscode');
+const chokidar = require("chokidar");
+const fs = require("fs");
+const path = require("path");
+const get = require("lodash/get");
+const set = require("lodash/set");
+const vscode = require("vscode");
 const { Range, Position, Hover } = vscode;
 
 const workspaceRoot = vscode.workspace.rootPath;
-const configurationSection = 'i18nHelper';
+const configurationSection = "i18nHelper";
 const translation = {};
 let globalWatcher;
 
@@ -15,16 +15,14 @@ function loadConfig() {
   return vscode.workspace.getConfiguration(configurationSection);
 }
 
-function getFolders(dir){
+function getFolders(dir) {
   const realDir = path.join(workspaceRoot, dir);
   return new Promise((resolve, reject) => {
     fs.readdir(realDir, (err, folders) => {
       if (err) {
         reject(err);
       } else {
-        resolve(
-          folders.map((f) => f)
-        );
+        resolve(folders.map(f => f));
       }
     });
   });
@@ -32,8 +30,8 @@ function getFolders(dir){
 
 function loadFile(file) {
   return new Promise((resolve, reject) => {
-    fs.readFile(file, (err, data) => {      
-      if(err){
+    fs.readFile(file, (err, data) => {
+      if (err) {
         reject(err);
       } else {
         resolve(data);
@@ -44,54 +42,54 @@ function loadFile(file) {
 
 async function loadProjects(configs) {
   const result = [];
-  for (const config of configs){
+  for (const config of configs) {
     result.push({
       name: config.name,
       locales: await getFolders(config.path)
-    })
+    });
   }
 
   return result;
 }
 
-async function loadTranslation(config){
+async function loadTranslation(config) {
   const { path, project, locale } = config;
   const fromFile = await loadFile(path);
   set(translation, [project, locale], JSON.parse(fromFile));
 }
 
 function initWatcher(projects) {
-  const paths = projects.map(p => path.join(workspaceRoot,p.path));
+  const isWin = process.platform === "win32";
+  const SEPERATOR = isWin ? "\\" : "/";
+  const paths = projects.map(p => path.join(workspaceRoot, p.path));
   const watcher = chokidar.watch(paths, {
     persistent: true
   });
 
   const getTranslationConfig = path => {
-    const _path = path.replace(`${workspaceRoot}/`, "");
+    const _path = path.replace(`${workspaceRoot}${SEPERATOR}`, "");
     const project = projects.find(p => _path.startsWith(p.path));
-    const regex =
-      "(?<=" +
-      project.path.replace("/", "/") +
-      "/).+(?=/translation.json)";
-
+    const pathRegex = isWin
+      ? project.path.replace(/\\/g, "\\\\")
+      : project.path.replace(/\//g, "\/");
+    const fileRegex = isWin ? "\\\\translation.json" : "\/translation.json";
+    const regex = `(?<=${pathRegex}).+(?=${fileRegex})`;
     const locale = _path.match(new RegExp(regex, "g")) || [""];
-    
+
     return {
       path,
       project: project.name,
-      locale: locale[0],
-    }
+      locale: locale[0]
+    };
   };
 
-  const onEvent = async (path) => {
-    const config = getTranslationConfig(path)
-    await loadTranslation(config)
+  const onEvent = async path => {
+    const config = getTranslationConfig(path);
+    await loadTranslation(config);
     console.log(`${config.project} ${config.locale} loaded`);
-  }
+  };
 
-  watcher
-    .on("add", onEvent)
-    .on("change", onEvent)
+  watcher.on("add", onEvent).on("change", onEvent);
 
   globalWatcher = watcher;
   return watcher;
@@ -142,8 +140,9 @@ async function activate() {
           const [str] = match;
           const target = str.replace(`'`, "").replace(`'`, "");
           const getter = config.flatten
-            ? target.split(".")
-            : [target];
+            ? [target]
+            : target.split(".");
+
           let markdownStr = "";
 
           projects.forEach(project => {
@@ -166,7 +165,7 @@ async function activate() {
             markdownStr += projectStr;
           });
 
-          if(markdownStr){
+          if (markdownStr) {
             return new Hover(markdownStr);
           } else {
             return;
@@ -188,5 +187,5 @@ function deactivate() {
 
 module.exports = {
   activate,
-  deactivate,
+  deactivate
 };
